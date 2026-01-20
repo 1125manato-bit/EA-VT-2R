@@ -262,18 +262,18 @@ void VT2BBlackEditor::resized() {
   mixKnob.setBounds(g_debugMixX - g_debugKnobSize / 2, g_debugMixY,
                     g_debugKnobSize, g_debugKnobSize);
 #else
-  // Estimated Positions for 1024x866 UI
-  // Left Knob (Drive) ~ 25% X
-  // Right Knob (Mix) ~ 75% X
-  // Y ~ 65% Y
+  // User-specified coordinates
+  // DRIVE: x=216, y=626
+  // MIX: x=809, y=626
+  // Size: 206
 
-  int knobSize = 250;
-  int yPos = 580; // Adjusted for large knob size
+  int knobSize = 206;
 
-  // Left: Center ~256
-  driveKnob.setBounds(256 - knobSize / 2, yPos, knobSize, knobSize);
+  // DRIVE knob (center at 216, 626)
+  driveKnob.setBounds(216 - knobSize / 2, 626 - knobSize / 2, knobSize,
+                      knobSize);
 
-  // Right: Center ~768
-  mixKnob.setBounds(768 - knobSize / 2, yPos, knobSize, knobSize);
+  // MIX knob (center at 809, 626)
+  mixKnob.setBounds(809 - knobSize / 2, 626 - knobSize / 2, knobSize, knobSize);
 #endif
 }

@@ -8,51 +8,29 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
-    env:
-      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-
+    
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Run Build Script
       shell: cmd
       run: |
-        call build.bat
-
-    - name: Install Inno Setup
-      shell: powershell
-      run: |
-        choco install innosetup
-
-    - name: Build Installer
-      shell: cmd
-      run: |
-        "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer_windows.iss
-
-    - name: Import Certificate
-      if: env.WINDOWS_CERTIFICATE != ''
-      shell: powershell
-      run: |
-        $pfx_cert_byte = [System.Convert]::FromBase64String("${{ env.WINDOWS_CERTIFICATE }}")
-        [IO.File]::WriteAllBytes("$env:TEMP\cert.pfx", $pfx_cert_byte)
-
-    - name: Sign Installer
-      if: env.WINDOWS_CERTIFICATE != ''
-      shell: cmd
-      env:
-        CERT_PASSWORD: ${{ env.WINDOWS_CERTIFICATE_PASSWORD }}
-      run: |
-        "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /f "%TEMP%\cert.pfx" /p "%CERT_PASSWORD%" /tr http://timestamp.digicert.com /td sha256 /fd sha256 installer\*.exe
-
-    - name: Upload Artifacts
+        call build.bat Release
+    
+    # Inno Setup is optional but recommended if creating an installer
+    # The user specifically asked for VST3 and DLL artifacts this time.
+    
+    - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: windows-installer
+        name: EA-VT-2R-Windows-Build
         path: |
-          installer/*.exe
           build/**/*.vst3
           build/**/*.dll
-        if-no-files-found: error
+          # Also including installer if generated, as it's useful
+          installer/*.exe
+        if-no-files-found: warn

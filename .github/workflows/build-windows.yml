@@ -6,6 +6,8 @@ on:
   pull_request:
     branches: [ "main", "master", "develop" ]
   workflow_dispatch:
+  release:
+    types: [created]
 
 jobs:
   build-windows:
@@ -43,3 +45,11 @@ jobs:
           # Also including installer if generated, as it's useful
           installer/*.exe
         if-no-files-found: warn
+
+    - name: Upload to Release
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: installer/EA_VT-2R_Installer_Windows.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

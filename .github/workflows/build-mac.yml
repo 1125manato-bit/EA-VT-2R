@@ -6,6 +6,8 @@ on:
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
+  release:
+    types: [created]
 
 jobs:
   build-macos:
@@ -102,3 +104,11 @@ jobs:
       with:
         name: EA-VT-2R-macOS-Release
         path: release/
+
+    - name: Upload to Release
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: EA_VT-2R_Installer_macOS.pkg
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

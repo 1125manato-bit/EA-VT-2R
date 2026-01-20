@@ -11,11 +11,11 @@ on:
 
 permissions:
   contents: write
-  
+
 jobs:
   build-windows:
     runs-on: windows-latest
-    
+
     steps:
     - uses: actions/checkout@v4
       with:
@@ -24,20 +24,17 @@ jobs:
     - name: Run Build Script
       shell: cmd
       run: |
-        call build.bat Release
-    
+        build.bat
+
     - name: Install Inno Setup
       run: |
         choco install innosetup
-        
+
     - name: Build Installer
       shell: cmd
       run: |
         "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer_windows.iss
-    
-    # Inno Setup is optional but recommended if creating an installer
-    # The user specifically asked for VST3 and DLL artifacts this time.
-    
+
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -45,14 +42,14 @@ jobs:
         path: |
           build/**/*.vst3
           build/**/*.dll
-          # Also including installer if generated, as it's useful
           installer/*.exe
         if-no-files-found: warn
 
     - name: Upload to Release
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: v1.0.0
         files: installer/EA_VT-2R_Installer_Windows.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

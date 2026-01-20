@@ -1,0 +1,5 @@
+# Hashes of file build rules.
+ab546fad59bd72b7f3749b0ca3d14701 EA_VT_2B_artefacts/JuceLibraryCode/EA_VT_2B_AU/PkgInfo
+ddfb44e51ab756427f5e63f10d497368 EA_VT_2B_artefacts/JuceLibraryCode/EA_VT_2B_Standalone/PkgInfo
+7510bfe2808ea02c0599db5c19e8547d EA_VT_2B_artefacts/JuceLibraryCode/EA_VT_2B_VST3/PkgInfo
+007cb4016cc45def819ca34660a3be08 juce_binarydata_EA_VT_2B_Data/JuceLibraryCode/BinaryData1.cpp

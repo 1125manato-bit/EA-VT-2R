@@ -1,0 +1,58 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [ "main", "master", "develop" ]
+  pull_request:
+    branches: [ "main", "master", "develop" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run Build Script
+      shell: cmd
+      run: |
+        call build.bat
+
+    - name: Install Inno Setup
+      shell: powershell
+      run: |
+        choco install innosetup
+
+    - name: Build Installer
+      shell: cmd
+      run: |
+        "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer_windows.iss
+
+    - name: Import Certificate
+      if: env.WINDOWS_CERTIFICATE != ''
+      shell: powershell
+      run: |
+        $pfx_cert_byte = [System.Convert]::FromBase64String("${{ env.WINDOWS_CERTIFICATE }}")
+        [IO.File]::WriteAllBytes("$env:TEMP\cert.pfx", $pfx_cert_byte)
+
+    - name: Sign Installer
+      if: env.WINDOWS_CERTIFICATE != ''
+      shell: cmd
+      env:
+        CERT_PASSWORD: ${{ env.WINDOWS_CERTIFICATE_PASSWORD }}
+      run: |
+        "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /f "%TEMP%\cert.pfx" /p "%CERT_PASSWORD%" /tr http://timestamp.digicert.com /td sha256 /fd sha256 installer\*.exe
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-installer
+        path: |
+          installer/*.exe
+          build/**/*.vst3
+          build/**/*.dll
+        if-no-files-found: error

@@ -1,0 +1,104 @@
+name: Build macOS
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    env:
+      MACOS_CERT: ${{ secrets.MACOS_CERTIFICATE }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Build with build.sh
+      run: |
+        chmod +x build.sh
+        ./build.sh Release
+
+    - name: Import Certificate
+      if: env.MACOS_CERT != ''
+      env:
+        BUILD_CERTIFICATE_BASE64: ${{ env.MACOS_CERT }}
+        P12_PASSWORD: ${{ env.MACOS_CERTIFICATE_PASSWORD }}
+        KEYCHAIN_PASSWORD: ${{ env.KEYCHAIN_PASSWORD }}
+      run: |
+        CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+        KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+        echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+        security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+        security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+        security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t agg -k $KEYCHAIN_PATH
+        security list-keychains -s $KEYCHAIN_PATH
+        security find-identity -v -p codesigning
+
+    - name: Sign Plugin Binaries
+      if: env.MACOS_CERT != ''
+      run: |
+        codesign --deep --force --verbose --options=runtime --sign "Developer ID Application" "build/EA_VT_2R_artefacts/Release/VST3/EA VT-2R.vst3"
+        codesign --deep --force --verbose --options=runtime --sign "Developer ID Application" "build/EA_VT_2R_artefacts/Release/AU/EA VT-2R.component"
+
+    - name: Build Package (.pkg)
+      run: |
+        mkdir -p pkg_root/Library/Audio/Plug-Ins/VST3
+        mkdir -p pkg_root/Library/Audio/Plug-Ins/Components
+        cp -R build/EA_VT_2R_artefacts/Release/VST3/EA\ VT-2R.vst3 pkg_root/Library/Audio/Plug-Ins/VST3/
+        cp -R build/EA_VT_2R_artefacts/Release/AU/EA\ VT-2R.component pkg_root/Library/Audio/Plug-Ins/Components/
+        
+        pkgbuild --identifier "com.emuaudio.ea-vt2r.pkg" \
+                 --version "1.0.0" \
+                 --root pkg_root \
+                 --install-location / \
+                 EA_VT-2R_Installer_macOS_unsigned.pkg
+
+    - name: Sign Installer Package
+      if: env.MACOS_CERT != ''
+      run: |
+        productsign --sign "Developer ID Installer" \
+                    EA_VT-2R_Installer_macOS_unsigned.pkg \
+                    EA_VT-2R_Installer_macOS.pkg
+
+    - name: Notarize Package
+      if: env.APPLE_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '' && env.APPLE_TEAM_ID != ''
+      run: |
+        xcrun notarytool submit EA_VT-2R_Installer_macOS.pkg \
+          --apple-id "${{ secrets.APPLE_ID }}" \
+          --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
+          --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+          --wait
+
+    - name: Staple Ticket
+      if: env.APPLE_ID != ''
+      run: |
+        xcrun stapler staple EA_VT-2R_Installer_macOS.pkg
+
+    - name: Rename Unsigned Package (if signing skipped)
+      if: env.MACOS_CERT == ''
+      run: |
+        mv EA_VT-2R_Installer_macOS_unsigned.pkg EA_VT-2R_Installer_macOS.pkg
+
+    - name: Prepare Artifacts
+      run: |
+        mkdir release
+        cp EA_VT-2R_Installer_macOS.pkg release/
+        find build -name "*.vst3" -o -name "*.component" -exec cp -R {} release/ \;
+        ls -R release
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: EA-VT-2R-macOS-Release
+        path: release/
